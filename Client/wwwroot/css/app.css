@@ -93,7 +93,7 @@ body {
             font-size: 25px;
             font-weight: bold;
             height: 100%;
-            line-height: 50px;
+            line-height: 2em;
             margin-left: 10px;
             outline: none;
             visibility: hidden;
@@ -286,7 +286,6 @@ body {
             }
 
             .content .center .tab-list .tab .text {
-                line-height: 35px;
                 text-align: center;
                 overflow: hidden;
                 user-select: none;

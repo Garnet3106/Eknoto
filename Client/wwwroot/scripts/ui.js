@@ -78,8 +78,19 @@ function onMainEditorElemAdd(_index, node) {
         $elem.children().removeAttr('class');
     }
 
+    let index = $elem.index();
+    let indent = '0px';
+
+    if(index != -1) {
+        indent = $elem.parent().children().eq(index - 1).css('text-indent');
+    }
+
     $elem.removeAttr('style');
     $elem.children().removeAttr('style');
+
+    if($elem.data('invalidateIndent') != 'true') {
+        $elem.css('text-indent', indent);
+    }
 
     switch($elem[0].tagName) {
         case 'B':
@@ -115,9 +126,10 @@ function onEditorPaste(event) {
 }
 
 function onKeyDown(event) {
-    // todo: タイトルやリストの先頭にスペースのみがあった場合は許容
     if($(':focus').attr('id') === 'MainEditor') {
         if(event.key === ' ') {
+            // note: スペース入力によるタイトルやリストの生成
+
             $.each($('#MainEditor div'), (_index, elem) => {
                 let $elem = $(elem);
 
@@ -145,40 +157,79 @@ function onKeyDown(event) {
                     $elem.removeAttr('class');
                     $elem.addClass('title-' + String(titleNum));
                     event.preventDefault();
-                } else if($elem.text().startsWith('-')) {
+                    return;
+                }
+
+                if($elem.text().startsWith('-')) {
                     let $listItem = $('<li class="list-item"></li>');
                     $listItem.addClass('list-item');
                     $listItem.data('keepClass', 'true');
                     $listItem.text($elem.text().substring(1));
                     $elem.replaceWith($listItem);
+
                     event.preventDefault();
+                    return;
                 }
             });
-        } else if(event.key === 'Backspace') {
-            let selectionRange = window.getSelection().getRangeAt(0);
-            console.log(selectionRange);
 
-            if(selectionRange.collapsed) {
-                console.log(typeof selectionRange.startContainer);
-                let $target = $(selectionRange.startContainer);
+            return;
+        }
 
-                let hasClass = $target.hasClass('list-item');
-                let isListItem;
+        let selectionRange = window.getSelection().getRangeAt(0);
+        let $target = $(selectionRange.startContainer);
 
-                if(!hasClass) {
-                    $target = $(selectionRange.startContainer.parentElement);
-                    isListItem = $target.hasClass('list-item');
-                } else {
-                    isListItem = true;
-                }
+        if(selectionRange.startContainer.constructor.name == 'Text') {
+            $target = $(selectionRange.startContainer.parentElement);
+        }
 
-                if(selectionRange.startOffset == 0 && isListItem) {
-                    let $newElem = $('<div></div>');
-                    $newElem.html($target.html());
-                    $target.replaceWith($newElem);
-                    event.preventDefault();
-                }
+        if(event.key === 'Backspace') {
+            if(!selectionRange.collapsed || selectionRange.startOffset != 0) {
+                return;
             }
+
+            let indent = $target.css('text-indent');
+            indent = Number(indent.substring(0, indent.length - 2));
+
+            if(indent > 0) {
+                if(indent >= 20) {
+                    $target.css('text-indent', (indent - 20) + 'px');
+                } else {
+                    $target.css('text-indent', '0px');
+                }
+
+                if($target.css('text-indent') == '0px') {
+                    $target.data('invalidateIndent', 'true');
+                }
+
+                event.preventDefault();
+                return;
+            }
+
+            if($target.hasClass('list-item')) {
+                let $newElem = $('<div></div>');
+
+                if($target.html().length == 0) {
+                    $newElem.html('<br>' + $target.html());
+                } else {
+                    $newElem.html($target.html());
+                }
+
+                if($target.data('invalidateIndent') == 'true') {
+                    $newElem.data('invalidateIndent', 'true');
+                }
+
+                $target.replaceWith($newElem);
+                event.preventDefault();
+                return;
+            }
+        }
+
+        if(event.key === 'Tab') {
+            let indent = $target.css('text-indent');
+            indent = Number(indent.substring(0, indent.length - 2));
+            $target.css('text-indent', (indent + 20) + 'px');
+            event.preventDefault();
+            return;
         }
     }
 }
