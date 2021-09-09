@@ -1,0 +1,12 @@
+﻿@page "/"
+center
+@ConnectToDatabase()
+
+@code {
+    @using MySql.Data.MySqlClient;
+
+    public static string ConnectToDatabase()
+    {
+        return "Connecting";
+    }
+}
