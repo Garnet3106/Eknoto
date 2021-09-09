@@ -73,9 +73,12 @@ function onMainEditorMutate(event) {
 function onMainEditorElemAdd(_index, node) {
     let $elem = $(node);
 
-    if($elem.data('keepClass') != 'true') {
-        $elem.removeAttr('class');
-        $elem.children().removeAttr('class');
+    $elem.removeAttr('class');
+    $elem.children().removeAttr('class');
+
+    if($elem.data('validateList') == 'true') {
+        $elem.addClass('list-item');
+        $elem.removeData('validateList');
     }
 
     let index = $elem.index();
@@ -127,63 +130,76 @@ function onEditorPaste(event) {
 
 function onKeyDown(event) {
     if($(':focus').attr('id') === 'MainEditor') {
-        if(event.key === ' ') {
-            // note: スペース入力によるタイトルやリストの生成
-
-            $.each($('#MainEditor div'), (_index, elem) => {
-                let $elem = $(elem);
-
-                if($elem.html().startsWith('##')) {
-                    let titleNum = 2;
-
-                    for(; titleNum < $elem.html().length; titleNum += 1) {
-                        if($elem.html()[titleNum] != '#') {
-                            break;
-                        }
-                    }
-
-                    if(titleNum > 4) {
-                        return;
-                    }
-
-                    let text = $elem.html().substring(titleNum);
-
-                    if(text.length == 0) {
-                        $elem.html('<br>' + text);
-                    } else {
-                        $elem.html(text);
-                    }
-
-                    $elem.removeAttr('class');
-                    $elem.addClass('title-' + String(titleNum));
-                    event.preventDefault();
-                    return;
-                }
-
-                if($elem.text().startsWith('-')) {
-                    let $listItem = $('<li class="list-item"></li>');
-                    $listItem.addClass('list-item');
-                    $listItem.data('keepClass', 'true');
-                    $listItem.text($elem.text().substring(1));
-                    $elem.replaceWith($listItem);
-
-                    event.preventDefault();
-                    return;
-                }
-            });
-
-            return;
-        }
-
-        let selectionRange = window.getSelection().getRangeAt(0);
+        let selection = window.getSelection();
+        let selectionRange = selection.getRangeAt(0);
         let $target = $(selectionRange.startContainer);
 
         if(selectionRange.startContainer.constructor.name == 'Text') {
             $target = $(selectionRange.startContainer.parentElement);
         }
 
+        let isCaretAtLineBegin;
+
+        if($target.attr('id') == 'MainEditor') {
+            $target = $target.children().eq(selectionRange.startOffset);
+            isCaretAtLineBegin = true;
+        } else {
+            isCaretAtLineBegin = selectionRange.startOffset == 0;
+        }
+
+        // note: スペース入力によるタイトルやリストの生成
+        if(event.key === ' ') {
+            if($target.html().startsWith('##')) {
+                let titleNum = 2;
+
+                for(; titleNum < $target.html().length; titleNum += 1) {
+                    if($target.html()[titleNum] != '#') {
+                        break;
+                    }
+                }
+
+                if(titleNum > 4) {
+                    return;
+                }
+
+                let text = $target.html().substring(titleNum);
+
+                if(text.length == 0) {
+                    $target.html('<br>' + text);
+                } else {
+                    $target.html(text);
+                }
+
+                $target.removeAttr('class');
+                $target.addClass('title-' + String(titleNum));
+                event.preventDefault();
+                return;
+            }
+
+            if($target.text().startsWith('-')) {
+                let $listItem = $('<li class="list-item"></li>');
+                $listItem.addClass('list-item');
+                $listItem.data('validateList', 'true');
+                $listItem.text($target.text().substring(1));
+                $target.replaceWith($listItem);
+
+                event.preventDefault();
+                return;
+            }
+
+            if(isCaretAtLineBegin) {
+                let indent = $target.css('text-indent');
+                indent = Number(indent.substring(0, indent.length - 2));
+                $target.css('text-indent', (indent + 20) + 'px');
+                event.preventDefault();
+            }
+
+            return;
+        }
+
         if(event.key === 'Backspace') {
-            if(!selectionRange.collapsed || selectionRange.startOffset != 0) {
+            console.log(isCaretAtLineBegin);
+            if(!selectionRange.collapsed || !isCaretAtLineBegin) {
                 return;
             }
 
