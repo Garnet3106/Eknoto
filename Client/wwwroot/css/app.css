@@ -306,6 +306,7 @@ body {
             outline: none;
             overflow-y: scroll;
             padding: 50px 10%;
+            text-indent: 0;
         }
 
             .content .center .editor * {
@@ -316,6 +317,7 @@ body {
                 margin: 0;
                 padding: 0;
                 text-decoration: none;
+                text-indent: 0;
             }
 
             .content .center .editor .title-2 {

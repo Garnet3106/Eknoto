@@ -23,6 +23,7 @@ function init() {
     $mainEditor.focus();
     // event.data が undefined になるため on を使わない; 原因不明
     $mainEditor[0].addEventListener('input', onMainEditorInput);
+    $mainEditor[0].addEventListener('compositionend', onCompositionEnd);
     $mainEditor[0].addEventListener('paste', onEditorPaste);
 
     let editorObserver = new MutationObserver(onMainEditorMutate);
@@ -52,16 +53,38 @@ function onNotoAddBtnClick(_event) {
 }
 
 function onMainEditorInput(event) {
-    // if(event.data == ' ') {
-    //     $.each($('#MainEditor div'), (_index, elem) => {
-    //         let $elem = $(elem);
+    let $mainEditor = $(event.target);
 
-    //         if($elem.text().startsWith('##')) {
-    //             $elem.addClass('title-2');
-    //             $elem.text($elem.text().substring(2));
-    //         }
-    //     });
-    // }
+    if(event.inputType == 'insertText' && $mainEditor.children().length == 0) {
+        addFirstElem($mainEditor);
+    }
+}
+
+function onCompositionEnd(event) {
+    let $target = $(event.target);
+
+    if($target.attr('id') != 'MainEditor') {
+        return;
+    }
+
+    if($target.children().length == 0) {
+        addFirstElem($target);
+    }
+}
+
+function addFirstElem($elem) {
+    let $newElem = $('<div></div>');
+    $newElem.html($elem.html());
+    $elem.html('');
+    $elem.append($newElem);
+
+    let selection = window.getSelection();
+    selection.removeAllRanges();
+
+    let newRange = document.createRange();
+    newRange.setStart($elem[0], 1);
+    newRange.setEnd($elem[0], 1);
+    selection.addRange(newRange);
 }
 
 function onMainEditorMutate(event) {
@@ -141,8 +164,22 @@ function onKeyDown(event) {
         let isCaretAtLineBegin;
 
         if($target.attr('id') == 'MainEditor') {
-            $target = $target.children().eq(selectionRange.startOffset);
-            isCaretAtLineBegin = true;
+            switch($target.children().length) {
+                case 0:
+                $target.append('<div></div>');
+                isCaretAtLineBegin = true;
+                break;
+
+                case 1:
+                $target = $target.children().eq(0);
+                isCaretAtLineBegin = selectionRange.startOffset == 0;
+                break;
+
+                default:
+                $target = $target.children().eq(selectionRange.startOffset);
+                isCaretAtLineBegin = true;
+                break;
+            }
         } else {
             isCaretAtLineBegin = selectionRange.startOffset == 0;
         }
@@ -181,7 +218,13 @@ function onKeyDown(event) {
                 $listItem.addClass('list-item');
                 $listItem.data('validateList', 'true');
                 $listItem.text($target.text().substring(1));
-                $target.replaceWith($listItem);
+
+                if($target.attr('id') == 'MainEditor') {
+                    let $targetChildren = $target.children();
+                    $targetChildren.children().eq(0).append($listItem);
+                } else {
+                    $target.replaceWith($listItem);
+                }
 
                 event.preventDefault();
                 return;
@@ -198,7 +241,6 @@ function onKeyDown(event) {
         }
 
         if(event.key === 'Backspace') {
-            console.log(isCaretAtLineBegin);
             if(!selectionRange.collapsed || !isCaretAtLineBegin) {
                 return;
             }
@@ -247,6 +289,15 @@ function onKeyDown(event) {
             event.preventDefault();
             return;
         }
+
+        // if(event.key !== 'Process') {
+        //     let $mainEditor = $('#MainEditor');
+
+        //     if($mainEditor.children().length == 0) {
+        //         // let $mainEditor = $
+        //         $mainEditor.append('<div></div>');
+        //     }
+        // }
     }
 }
 
