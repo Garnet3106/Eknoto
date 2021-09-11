@@ -366,6 +366,39 @@ body {
                 margin-left: 15px;
             }
 
+            .content .center .editor .block-title {
+                background-color: #e3ebf6;
+                display: inline-block;
+                font-size: 85%;
+                margin-top: 5px;
+                padding: 2px 5px;
+            }
+
+            .content .center .editor .table {
+                width: fit-content;
+            }
+
+                .content .center .editor .table br {
+                    height: 0.8em;
+                }
+
+                .content .center .editor .table .table-row {
+                }
+
+                .content .center .editor .table .table-cell {
+                    background-color: #e0e0e0;
+                    border: none;
+                    box-shadow: 0px 0px 0px 0.5px #ffffff inset;
+                    height: 2em;
+                    line-height: 2em;
+                    min-width: 15px;
+                    padding: 3px 8px;
+                }
+
+                .content .center .editor .table .table-header {
+                    font-weight: bold;
+                }
+
     .content .right {
         align-items: center;
         background-color: #e1ebff;

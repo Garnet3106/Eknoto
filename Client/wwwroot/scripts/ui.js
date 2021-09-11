@@ -96,32 +96,47 @@ function onMainEditorMutate(event) {
 function onMainEditorElemAdd(_index, node) {
     let $elem = $(node);
 
-    $elem.removeAttr('class');
-    $elem.children().removeAttr('class');
+    if($elem.data('keepClass') !== 'true') {
+        $elem.removeAttr('class');
+        $elem.children().removeAttr('class');
+    }
 
     if($elem.data('validateList') == 'true') {
         $elem.addClass('list-item');
         $elem.removeData('validateList');
-    }
-
-    let index = $elem.index();
-    let indent = '0px';
-
-    if(index != -1) {
-        indent = $elem.parent().children().eq(index - 1).css('text-indent');
-    }
-
-    $elem.removeAttr('style');
-    $elem.children().removeAttr('style');
-
-    if($elem.data('invalidateIndent') != 'true') {
-        $elem.css('text-indent', indent);
-    }
+    }console.log($elem[0].tagName)
 
     switch($elem[0].tagName) {
         case 'B':
         $elem.addClass('bold');
         break;
+
+        case 'DIV': {
+            // インデント設定
+            let index = $elem.index();
+            let indent = '0px';
+
+            if(index != -1) {
+                indent = $elem.parent().children().eq(index - 1).css('text-indent');
+            }
+
+            $elem.removeAttr('style');
+            $elem.children().removeAttr('style');
+
+            if($elem.data('invalidateIndent') != 'true') {
+                $elem.css('text-indent', indent);
+            }
+
+            // // 前の要素を置き換え
+            // let replacePreviousElemWith = $elem.data('replacePreviousElemWith');
+
+            // console.log(replacePreviousElemWith);
+            // if(replacePreviousElemWith !== undefined && index > 0) {
+            //     let $replaceTarget = $elem.parent().children().eq(index - 1);
+            //     let $newElem = $(replacePreviousElemWith);
+            //     $replaceTarget.replaceWith($newElem);
+            // }
+        } break;
 
         case 'I':
         $elem.addClass('italic');
@@ -133,6 +148,42 @@ function onMainEditorElemAdd(_index, node) {
 
         case 'S':
         $elem.addClass('strike');
+        break;
+
+        case 'TABLE': {
+            $elem.addClass('table');
+
+            $.each($elem.find('*'), (_index, subElem) => {
+                let $subElem = $(subElem);
+
+                switch(subElem.tagName) {
+                    case 'TD':
+                    $subElem.addClass('table-cell');
+                    break;
+
+                    case 'TH':
+                    $subElem.addClass('table-cell');
+                    $subElem.addClass('table-header');
+                    break;
+
+                    case 'TR':
+                    $subElem.addClass('table-row');
+                    break;
+                }
+            });
+        } break;
+
+        case 'TD':
+        $elem.addClass('table-cell');
+        break;
+
+        case 'TH':
+        $elem.addClass('table-cell');
+        $elem.addClass('table-header');
+        break;
+
+        case 'TR':
+        $elem.addClass('table-row');
         break;
 
         case 'U':
@@ -217,6 +268,7 @@ function onKeyDown(event) {
                 let $listItem = $('<li class="list-item"></li>');
                 $listItem.addClass('list-item');
                 $listItem.data('validateList', 'true');
+                $listItem.data('invalidateIndent', 'true');
                 $listItem.text($target.text().substring(1));
 
                 if($target.attr('id') == 'MainEditor') {
@@ -245,6 +297,25 @@ function onKeyDown(event) {
                 return;
             }
 
+            if($target.hasClass('list-item')) {
+                let $newElem = $('<div></div>');
+                $newElem.css('text-indent', $target.css('text-indent'));
+
+                if($target.html().length == 0) {
+                    $newElem.html('<br>' + $target.html());
+                } else {
+                    $newElem.html($target.html());
+                }
+
+                if($target.data('invalidateIndent') == 'true') {
+                    $newElem.data('invalidateIndent', 'true');
+                }
+
+                $target.replaceWith($newElem);
+                event.preventDefault();
+                return;
+            }
+
             let indent = $target.css('text-indent');
             indent = Number(indent.substring(0, indent.length - 2));
 
@@ -262,24 +333,6 @@ function onKeyDown(event) {
                 event.preventDefault();
                 return;
             }
-
-            if($target.hasClass('list-item')) {
-                let $newElem = $('<div></div>');
-
-                if($target.html().length == 0) {
-                    $newElem.html('<br>' + $target.html());
-                } else {
-                    $newElem.html($target.html());
-                }
-
-                if($target.data('invalidateIndent') == 'true') {
-                    $newElem.data('invalidateIndent', 'true');
-                }
-
-                $target.replaceWith($newElem);
-                event.preventDefault();
-                return;
-            }
         }
 
         if(event.key === 'Tab') {
@@ -288,6 +341,43 @@ function onKeyDown(event) {
             $target.css('text-indent', (indent + 20) + 'px');
             event.preventDefault();
             return;
+        }
+
+        if(event.key === 'Enter') {
+            let content = $target.text();
+            console.log(content.toLowerCase());
+
+            if(content.toLowerCase().startsWith('table:')) {
+                let args = content.split(':');
+
+                if(args.length == 2) {
+                    let title = args[1];
+
+                    let $titleElem = $('<div></div>');
+                    $titleElem.addClass('block-title');
+                    $titleElem.css('text-indent', '0px');
+                    $titleElem.data('keepClass', 'true');
+                    $titleElem.text(title);
+                    $target.before($titleElem);
+
+                    // note: text() でなぜか動作が変わる
+                    $target.text('');
+
+                    let defaultColumnLen = 3;
+                    let $table = $(`
+                    <table>
+                        <tr>
+                            ${'<th></th>'.repeat(defaultColumnLen)}
+                        </tr>
+                        <tr>
+                            ${'<td></td>'.repeat(defaultColumnLen)}
+                        </tr>
+                    </table>`);
+
+                    $target.replaceWith($table);
+                    event.preventDefault();
+                }
+            }
         }
 
         // if(event.key !== 'Process') {
