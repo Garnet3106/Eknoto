@@ -104,7 +104,7 @@ function onMainEditorElemAdd(_index, node) {
     if($elem.data('validateList') == 'true') {
         $elem.addClass('list-item');
         $elem.removeData('validateList');
-    }console.log($elem[0].tagName)
+    }
 
     switch($elem[0].tagName) {
         case 'B':
@@ -150,40 +150,22 @@ function onMainEditorElemAdd(_index, node) {
         $elem.addClass('strike');
         break;
 
-        case 'TABLE': {
-            $elem.addClass('table');
-
-            $.each($elem.find('*'), (_index, subElem) => {
-                let $subElem = $(subElem);
-
-                switch(subElem.tagName) {
-                    case 'TD':
-                    $subElem.addClass('table-cell');
-                    break;
-
-                    case 'TH':
-                    $subElem.addClass('table-cell');
-                    $subElem.addClass('table-header');
-                    break;
-
-                    case 'TR':
-                    $subElem.addClass('table-row');
-                    break;
-                }
-            });
-        } break;
-
-        case 'TD':
-        $elem.addClass('table-cell');
+        case 'TABLE':
+        onMainEditorElemAdd_table($elem);
         break;
 
+        case 'TD':
         case 'TH':
-        $elem.addClass('table-cell');
-        $elem.addClass('table-header');
+        onMainEditorElemAdd_tableCell($elem);
         break;
 
         case 'TR':
-        $elem.addClass('table-row');
+        if($elem.children().length == 0) {
+            $elem.remove();
+            return;
+        }
+
+        onMainEditorElemAdd_tableRow($elem);
         break;
 
         case 'U':
@@ -194,6 +176,30 @@ function onMainEditorElemAdd(_index, node) {
     if($elem.text().startsWith('##')) {
         $elem.addClass('title-2');
         $elem.text($elem.text().substring(2));
+    }
+}
+
+function onMainEditorElemAdd_table($elem) {
+    $elem.addClass('table');
+
+    $.each($elem.find('tr'), (_index, subElem) => {
+        onMainEditorElemAdd_tableRow($(subElem));
+    });
+}
+
+function onMainEditorElemAdd_tableRow($elem) {
+    $elem.addClass('table-row');
+
+    $.each($elem.find('td, th'), (_index, subElem) => {
+        onMainEditorElemAdd_tableCell($(subElem));
+    });
+}
+
+function onMainEditorElemAdd_tableCell($elem) {
+    $elem.addClass('table-cell');
+
+    if($elem[0].tagName == 'TH') {
+        $elem.addClass('table-header');
     }
 }
 
@@ -297,6 +303,20 @@ function onKeyDown(event) {
                 return;
             }
 
+            if($target[0].tagName == 'TD' && $target.index() == 0) {
+                let newRange = document.createRange();
+                let selectionTarget = $target.parent().prev().children('td, th').last()[0];
+                let selectionOffset = $(selectionTarget).text().length;
+                console.log($target.parent().prev().children('td, th'))
+                newRange.setStart(selectionTarget, selectionOffset);
+                newRange.setEnd(selectionTarget, selectionOffset);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+
+                $target.parent().remove();
+                event.preventDefault();
+            }
+
             if($target.hasClass('list-item')) {
                 let $newElem = $('<div></div>');
                 $newElem.css('text-indent', $target.css('text-indent'));
@@ -345,7 +365,23 @@ function onKeyDown(event) {
 
         if(event.key === 'Enter') {
             let content = $target.text();
-            console.log(content.toLowerCase());
+
+            switch($target[0].tagName) {
+                case 'TH':
+                case 'TD': {
+                    let $newRow = $(`<tr>${'<td></td>'.repeat(3)}<tr>`);
+                    $target.parent().after($newRow);
+
+                    let newRange = document.createRange();
+                    let selectionTarget = $newRow.find('td')[0];
+                    newRange.setStart(selectionTarget, 0);
+                    newRange.setEnd(selectionTarget, 0);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+
+                    event.preventDefault();
+                } return;
+            }
 
             if(content.toLowerCase().startsWith('table:')) {
                 let args = content.split(':');
@@ -376,6 +412,7 @@ function onKeyDown(event) {
 
                     $target.replaceWith($table);
                     event.preventDefault();
+                    return;
                 }
             }
         }
